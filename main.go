@@ -31,6 +31,12 @@ type User struct {
 	Password string `json:"password"`
 }
 
+type Product struct {
+	ID    int     `json:"id"`
+	Name  string  `json:"name"`
+	Price float64 `json:"price"`
+}
+
 // Структура для успешного ответа
 type SuccessResponse struct {
 	Message string `json:"message"`
@@ -138,6 +144,91 @@ func main() {
 
 		// Если значение найдено, отображаем его
 		c.JSON(http.StatusOK, SuccessResponse{Message: fmt.Sprintf("User ID from session: %v", userID)})
+	})
+
+	// Маршрут для создания нового товара
+	router.POST("/products", func(c *gin.Context) {
+		var product Product
+		if err := c.BindJSON(&product); err != nil {
+			c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid JSON"})
+			return
+		}
+
+		// Вставка данных о товаре в таблицу
+		_, err := db.Exec("INSERT INTO products (name, price) VALUES ($1, $2)", product.Name, product.Price)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to create product"})
+			return
+		}
+
+		c.JSON(http.StatusOK, SuccessResponse{Message: "Product created successfully"})
+	})
+
+	// Маршрут для получения списка всех товаров
+	router.GET("/products", func(c *gin.Context) {
+		var products []Product
+		rows, err := db.Query("SELECT id, name, price FROM products")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to fetch products"})
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var product Product
+			if err := rows.Scan(&product.ID, &product.Name, &product.Price); err != nil {
+				c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to scan product"})
+				return
+			}
+			products = append(products, product)
+		}
+
+		c.JSON(http.StatusOK, products)
+	})
+
+	// Маршрут для получения информации о конкретном товаре по его ID
+	router.GET("/products/:id", func(c *gin.Context) {
+		var product Product
+		id := c.Param("id")
+
+		row := db.QueryRow("SELECT id, name, price FROM products WHERE id = $1", id)
+		if err := row.Scan(&product.ID, &product.Name, &product.Price); err != nil {
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "Product not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, product)
+	})
+
+	// Маршрут для обновления информации о товаре по его ID
+	router.PUT("/products/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		var product Product
+		if err := c.BindJSON(&product); err != nil {
+			c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid JSON"})
+			return
+		}
+
+		_, err := db.Exec("UPDATE products SET name=$1, price=$2 WHERE id=$3", product.Name, product.Price, id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to update product"})
+			return
+		}
+
+		c.JSON(http.StatusOK, SuccessResponse{Message: "Product updated successfully"})
+	})
+
+	// Маршрут для удаления товара по его ID
+	router.DELETE("/products/:id", func(c *gin.Context) {
+		id := c.Param("id")
+
+		_, err := db.Exec("DELETE FROM products WHERE id=$1", id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to delete product"})
+			return
+		}
+
+		c.JSON(http.StatusOK, SuccessResponse{Message: "Product deleted successfully"})
 	})
 
 	// Запуск сервера на порту 8080

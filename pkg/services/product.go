@@ -5,9 +5,9 @@ import (
 	"example.com/server/pkg/repository"
 )
 
-func CreateProduct(productData models.Product) error {
+func CreateProduct(userID int, productData models.Product) error {
 	// Логика создания продукта
-	err := repository.InsertProduct(productData)
+	err := repository.InsertProduct(userID, productData)
 	if err != nil {
 		return err
 	}

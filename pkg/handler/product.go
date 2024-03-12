@@ -15,7 +15,9 @@ func CreateProduct(c *gin.Context) {
 		return
 	}
 
-	err := services.CreateProduct(product)
+	userID, _ := c.Get("userID")
+
+	err := services.CreateProduct(userID.(int), product)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: err.Error()})
 		return

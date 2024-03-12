@@ -5,6 +5,8 @@ import (
 	"example.com/server/pkg/models"
 	"fmt"
 	"sync"
+
+	_ "github.com/lib/pq"
 )
 
 var (
@@ -12,28 +14,27 @@ var (
 	dbInitOnce sync.Once
 )
 
-func initDB() error {
+func ConnectDB() (*sql.DB, error) {
 	connectionInfo := "host=localhost port=5432 user=postgres password=12345 dbname=mydatabase sslmode=disable"
-	var err error
 
-	db, err = sql.Open("postgres", connectionInfo)
+	db, err := sql.Open("postgres", connectionInfo)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := db.Ping(); err != nil {
 		db.Close()
-		return fmt.Errorf("failed to ping database: %v", err)
+		return nil, fmt.Errorf("failed to ping database: %v", err)
 	}
 
-	return nil
+	return db, nil
 }
 
 func getDB() (*sql.DB, error) {
 	var err error
 
 	dbInitOnce.Do(func() {
-		err = initDB()
+		db, err = ConnectDB()
 	})
 
 	if err != nil {
@@ -74,13 +75,13 @@ func GetUserByUsername(username string) (models.User, error) {
 	return user, nil
 }
 
-func InsertProduct(productData models.Product) error {
+func InsertProduct(userID int, productData models.Product) error {
 	db, err := getDB()
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Exec("INSERT INTO products (name, price) VALUES ($1, $2)", productData.Name, productData.Price)
+	_, err = db.Exec("INSERT INTO products (user_id, name, price) VALUES ($1, $2, $3)", userID, productData.Name, productData.Price)
 	if err != nil {
 		return err
 	}

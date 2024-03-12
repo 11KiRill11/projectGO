@@ -2,11 +2,11 @@ package main
 
 import (
 	"example.com/server/pkg/handler"
+	"example.com/server/pkg/middleware"
 	"example.com/server/pkg/repository"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq"
 	"log"
 )
 
@@ -19,7 +19,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
+
 	defer db.Close()
+
+	router.Use(middleware.AuthMiddleware())
 
 	router.POST("/register", handlers.Register)
 	router.POST("/login", handlers.Login)
